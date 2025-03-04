@@ -1,0 +1,21 @@
+{
+  "name": "task-management-system-root",
+  "version": "1.0.0",
+  "description": "Task Management System - Full Stack Application",
+  "main": "index.js",
+  "scripts": {
+    "server": "cd task-management-system/server && npm start",
+    "client": "cd task-management-system/client && npm start",
+    "start": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "keywords": [
+    "mern",
+    "task",
+    "management"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 
