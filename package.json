@@ -6,7 +6,8 @@
   "scripts": {
     "server": "cd task-management-system/server && npm start",
     "client": "cd task-management-system/client && npm start",
-    "start": "concurrently \"npm run server\" \"npm run client\""
+    "start": "concurrently \"npm run server\" \"npm run client\" \"npm run open\"",
+    "open": "node open-browser.js"
   },
   "keywords": [
     "mern",
