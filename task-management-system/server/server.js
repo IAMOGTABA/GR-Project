@@ -202,28 +202,58 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-// Connect to MongoDB using MongoDB Memory Server
+// Connect to Database
 const PORT = process.env.PORT || 5000;
+let server;
 
 async function startServer() {
   try {
-    // Create an in-memory MongoDB instance
-    const mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    
-    console.log('Connecting to in-memory MongoDB at:', mongoUri);
+    // Determine database connection method based on environment
+    let mongoUri;
+    let mongoServer;
+
+    if (process.env.NODE_ENV === 'development' && process.env.USE_MEMORY_DB === 'true') {
+      // Use in-memory MongoDB for development/testing
+      mongoServer = await MongoMemoryServer.create();
+      mongoUri = mongoServer.getUri();
+      console.log('Connecting to in-memory MongoDB at:', mongoUri);
+    } else {
+      // Use real MongoDB database
+      mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/task-management-system';
+      console.log('Connecting to MongoDB at:', mongoUri);
+    }
     
     await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
     
-    console.log('Connected to in-memory MongoDB successfully!');
+    console.log('Connected to MongoDB successfully!');
     
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+    // Handle shutdown gracefully
+    process.on('SIGTERM', shutDown);
+    process.on('SIGINT', shutDown);
   } catch (err) {
     console.error('MongoDB connection error:', err);
     process.exit(1);
+  }
+}
+
+// Graceful shutdown function
+function shutDown() {
+  console.log('Received kill signal, shutting down gracefully');
+  if (server) {
+    server.close(() => {
+      console.log('Server closed');
+      mongoose.connection.close(false, () => {
+        console.log('MongoDB connection closed');
+        process.exit(0);
+      });
+    });
+  } else {
+    process.exit(0);
   }
 }
 

@@ -1,20 +1,22 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// Protect routes - BYPASS FOR TESTING
+// Protect routes
 exports.protect = async (req, res, next) => {
-  // BYPASSED FOR TESTING: Setting a default admin user in the request
-  req.user = {
-    _id: '60d0fe4f5311236168a109ca', // Mock ID
-    name: 'Admin User',
-    email: 'admin@example.com',
-    role: 'admin'
-  };
-  
-  // Just pass through without authentication
-  return next();
+  // If bypass auth is enabled in development mode, skip authentication
+  if (process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true') {
+    // Set a default admin user in the request for testing
+    req.user = {
+      _id: '60d0fe4f5311236168a109ca', // Mock ID
+      name: 'Admin User',
+      email: 'admin@example.com',
+      role: 'admin'
+    };
+    
+    // Just pass through without authentication
+    return next();
+  }
 
-  /*
   let token;
 
   // Check for token in Authorization header
@@ -60,16 +62,16 @@ exports.protect = async (req, res, next) => {
       message: 'Not authorized to access this route',
     });
   }
-  */
 };
 
-// Grant access to specific roles - BYPASS FOR TESTING
+// Grant access to specific roles
 exports.authorize = (...roles) => {
   return (req, res, next) => {
-    // BYPASSED FOR TESTING: Always authorize
-    return next();
+    // If bypass auth is enabled in development mode, skip authorization
+    if (process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true') {
+      return next();
+    }
   
-    /*
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
@@ -77,6 +79,5 @@ exports.authorize = (...roles) => {
       });
     }
     next();
-    */
   };
 }; 
