@@ -10,7 +10,9 @@
     "prod": "NODE_ENV=production node server.js",
     "start:memory": "cross-env USE_MEMORY_DB=true node server.js",
     "start:mongodb": "cross-env USE_MEMORY_DB=false node server.js",
-    "db:init": "node scripts/ensure-db.js"
+    "db:init": "node scripts/ensure-db.js",
+    "check-ports": "node scripts/check-ports.js",
+    "prestart": "node scripts/check-ports.js"
   },
   "keywords": [
     "task",

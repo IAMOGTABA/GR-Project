@@ -4,21 +4,16 @@ import axios from 'axios';
 import './App.css';
 
 // Services
-import apiClient, { checkHealth, getCurrentUser } from './services/api';
+import { checkHealth, getCurrentUser } from './services/api';
 
 // Components
-import Navbar from './components/Navbar';
-import TaskList from './components/TaskList';
-import TaskForm from './components/TaskForm';
-import UserList from './components/UserList';
-import UserForm from './components/UserForm';
-import AnnouncementList from './components/AnnouncementList';
-import AnnouncementForm from './components/AnnouncementForm';
-import MessageList from './components/MessageList';
-import MessageForm from './components/MessageForm';
+import Navbar from './components/layout/Navbar';
+import TaskList from './components/tasks/TaskList';
+import TaskForm from './components/tasks/create/CreateTask';
+import UserList from './components/users/UserManagement';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
-import DashboardMetrics from './components/DashboardMetrics';
+import Dashboard from './components/dashboard/Dashboard';
 import ConnectionTest from './components/ConnectionTest';
 
 const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -149,7 +144,7 @@ function App() {
             {/* Protected Routes */}
             <Route 
               path="/dashboard" 
-              element={isAuthenticated ? <DashboardMetrics user={user} /> : <Navigate to="/login" />} 
+              element={isAuthenticated ? <Dashboard user={user} /> : <Navigate to="/login" />} 
             />
             
             {/* Task Routes */}
@@ -170,38 +165,6 @@ function App() {
             <Route 
               path="/users" 
               element={isAuthenticated && user?.role === 'admin' ? <UserList /> : <Navigate to="/dashboard" />} 
-            />
-            <Route 
-              path="/users/new" 
-              element={isAuthenticated && user?.role === 'admin' ? <UserForm /> : <Navigate to="/dashboard" />} 
-            />
-            <Route 
-              path="/users/edit/:id" 
-              element={isAuthenticated && user?.role === 'admin' ? <UserForm /> : <Navigate to="/dashboard" />} 
-            />
-            
-            {/* Announcement Routes */}
-            <Route 
-              path="/announcements" 
-              element={isAuthenticated ? <AnnouncementList user={user} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/announcements/new" 
-              element={isAuthenticated && user?.role === 'admin' ? <AnnouncementForm /> : <Navigate to="/dashboard" />} 
-            />
-            <Route 
-              path="/announcements/edit/:id" 
-              element={isAuthenticated && user?.role === 'admin' ? <AnnouncementForm /> : <Navigate to="/dashboard" />} 
-            />
-            
-            {/* Message Routes */}
-            <Route 
-              path="/messages" 
-              element={isAuthenticated ? <MessageList user={user} /> : <Navigate to="/login" />} 
-            />
-            <Route 
-              path="/messages/new" 
-              element={isAuthenticated ? <MessageForm user={user} /> : <Navigate to="/login" />} 
             />
             
             {/* Default Route */}

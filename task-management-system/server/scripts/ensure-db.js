@@ -48,14 +48,14 @@ const sampleTasks = [
   {
     title: 'Database Integration',
     description: 'Integrate MongoDB with the application',
-    status: 'in-progress',
+    status: 'in_progress',
     priority: 'high',
     dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
   },
   {
     title: 'Front-end Development',
     description: 'Develop the user interface components',
-    status: 'pending',
+    status: 'todo',
     priority: 'medium',
     dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
   }
@@ -126,6 +126,7 @@ async function createSampleTasks() {
       ...task,
       createdBy: admin._id,
       assignedTo: index % 2 === 0 ? regular._id : admin._id,
+      assignedBy: admin._id,
     }));
     
     await Task.insertMany(tasksWithUsers);
