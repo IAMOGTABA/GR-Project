@@ -202,74 +202,92 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
+// API routes
+app.get('/api/health', async (req, res) => {
+  try {
+    // Check database connection by performing a simple operation
+    const dbStatus = mongoose.connection.readyState;
+    /*
+      0 = disconnected
+      1 = connected
+      2 = connecting
+      3 = disconnecting
+    */
+    let dbStatusText;
+    switch(dbStatus) {
+      case 0:
+        dbStatusText = 'Disconnected';
+        break;
+      case 1:
+        dbStatusText = 'Connected';
+        break;
+      case 2:
+        dbStatusText = 'Connecting';
+        break;
+      case 3:
+        dbStatusText = 'Disconnecting';
+        break;
+      default:
+        dbStatusText = 'Unknown';
+    }
+
+    // Perform a simple database operation to verify connectivity
+    let testResult = false;
+    try {
+      const Test = mongoose.model('ConnectionTest', 
+        new mongoose.Schema({ name: String, date: { type: Date, default: Date.now } })
+      );
+      await Test.findOne({});
+      testResult = true;
+    } catch(err) {
+      console.error('Database test operation failed:', err.message);
+    }
+
+    res.status(200).json({ 
+      status: 'API is running', 
+      database: {
+        state: dbStatus,
+        status: dbStatusText,
+        type: process.env.USE_MEMORY_DB === 'true' ? 'In-Memory MongoDB' : 'MongoDB',
+        testResult: testResult ? 'Successful' : 'Failed'
+      },
+      timestamp: new Date()
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      status: 'Error', 
+      error: err.message,
+      timestamp: new Date()
+    });
+  }
+});
+
 // Connect to Database
 const PORT = process.env.PORT || 5000;
 let server;
 let mongoServer;
 
+// Import database initialization script
+const initializeDatabase = require('./scripts/ensure-db');
+
 async function startServer() {
   try {
-    // Set Mongoose options
-    mongoose.set('strictQuery', false);
+    console.log('Starting server in', process.env.NODE_ENV, 'mode');
     
-    // Determine database connection method based on environment
-    let mongoUri;
-
-    if (process.env.NODE_ENV === 'development' && process.env.USE_MEMORY_DB === 'true') {
-      // Use in-memory MongoDB for development/testing
-      mongoServer = await MongoMemoryServer.create();
-      mongoUri = mongoServer.getUri();
-      console.log('Connecting to in-memory MongoDB at:', mongoUri);
-    } else {
-      // Use real MongoDB database
-      mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/task-management-system';
-      console.log('Connecting to MongoDB at:', mongoUri.replace(/\/\/([^:]+):([^@]+)@/, '//******:******@')); // Hide credentials in logs
+    // Initialize database with the script
+    const result = await initializeDatabase();
+    if (result && result.mongoServer) {
+      mongoServer = result.mongoServer;
     }
     
-    // Set up connection options with proper timeouts and retry settings
-    const mongooseOptions = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 10000, // Timeout after 10 seconds
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-      family: 4 // Use IPv4, skip trying IPv6
-    };
-
-    // Connect to MongoDB
-    await mongoose.connect(mongoUri, mongooseOptions);
-    
-    console.log('Connected to MongoDB successfully!');
-    
-    // Create test document to verify write access
-    if (process.env.NODE_ENV === 'development' && process.env.USE_MEMORY_DB !== 'true') {
-      try {
-        const Test = mongoose.model('ConnectionTest', 
-          new mongoose.Schema({ name: String, date: { type: Date, default: Date.now } })
-        );
-        await Test.create({ name: 'Connection Test' });
-        console.log('Successfully created test document in database!');
-        
-        // Clean up test collection
-        await mongoose.connection.dropCollection('connectiontests');
-      } catch (testErr) {
-        console.warn('Database connection successful, but write test failed:', testErr.message);
-      }
-    }
-    
+    // Start Express server
     server = app.listen(PORT, () => console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`));
 
     // Handle shutdown gracefully
     process.on('SIGTERM', shutDown);
     process.on('SIGINT', shutDown);
   } catch (err) {
-    console.error('MongoDB connection error:', err);
-    if (err.name === 'MongoServerSelectionError') {
-      console.error('Could not connect to MongoDB server. Please check:');
-      console.error('1. Network connectivity to MongoDB server');
-      console.error('2. Correct credentials in connection string');
-      console.error('3. IP address whitelist in MongoDB Atlas (might need to add your current IP)');
-      console.error('4. Database user has proper access rights');
-    }
+    console.error('Server startup error:', err);
     process.exit(1);
   }
 }
@@ -296,4 +314,10 @@ startServer();
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send({ message: 'Something went wrong!' });
-}); 
+});
+
+// Open Developer Console in your browser and run:
+fetch('http://localhost:5000/api/health')
+  .then(response => response.json())
+  .then(data => console.log('Database status:', data.database))
+  .catch(error => console.error('Error checking database:', error)); 
