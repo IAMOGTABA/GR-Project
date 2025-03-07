@@ -205,12 +205,15 @@ app.get('/api/tasks', async (req, res) => {
 // Connect to Database
 const PORT = process.env.PORT || 5000;
 let server;
+let mongoServer;
 
 async function startServer() {
   try {
+    // Set Mongoose options
+    mongoose.set('strictQuery', false);
+    
     // Determine database connection method based on environment
     let mongoUri;
-    let mongoServer;
 
     if (process.env.NODE_ENV === 'development' && process.env.USE_MEMORY_DB === 'true') {
       // Use in-memory MongoDB for development/testing
@@ -220,23 +223,53 @@ async function startServer() {
     } else {
       // Use real MongoDB database
       mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/task-management-system';
-      console.log('Connecting to MongoDB at:', mongoUri);
+      console.log('Connecting to MongoDB at:', mongoUri.replace(/\/\/([^:]+):([^@]+)@/, '//******:******@')); // Hide credentials in logs
     }
     
-    await mongoose.connect(mongoUri, {
+    // Set up connection options with proper timeouts and retry settings
+    const mongooseOptions = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-    });
+      serverSelectionTimeoutMS: 10000, // Timeout after 10 seconds
+      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+      family: 4 // Use IPv4, skip trying IPv6
+    };
+
+    // Connect to MongoDB
+    await mongoose.connect(mongoUri, mongooseOptions);
     
     console.log('Connected to MongoDB successfully!');
     
-    server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    // Create test document to verify write access
+    if (process.env.NODE_ENV === 'development' && process.env.USE_MEMORY_DB !== 'true') {
+      try {
+        const Test = mongoose.model('ConnectionTest', 
+          new mongoose.Schema({ name: String, date: { type: Date, default: Date.now } })
+        );
+        await Test.create({ name: 'Connection Test' });
+        console.log('Successfully created test document in database!');
+        
+        // Clean up test collection
+        await mongoose.connection.dropCollection('connectiontests');
+      } catch (testErr) {
+        console.warn('Database connection successful, but write test failed:', testErr.message);
+      }
+    }
+    
+    server = app.listen(PORT, () => console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`));
 
     // Handle shutdown gracefully
     process.on('SIGTERM', shutDown);
     process.on('SIGINT', shutDown);
   } catch (err) {
     console.error('MongoDB connection error:', err);
+    if (err.name === 'MongoServerSelectionError') {
+      console.error('Could not connect to MongoDB server. Please check:');
+      console.error('1. Network connectivity to MongoDB server');
+      console.error('2. Correct credentials in connection string');
+      console.error('3. IP address whitelist in MongoDB Atlas (might need to add your current IP)');
+      console.error('4. Database user has proper access rights');
+    }
     process.exit(1);
   }
 }

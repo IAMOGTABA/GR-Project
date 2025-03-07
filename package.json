@@ -5,8 +5,10 @@
   "main": "index.js",
   "scripts": {
     "server": "cd task-management-system/server && npm start",
+    "server:mongodb": "cd task-management-system/server && npm run start:mongodb",
     "client": "cd task-management-system/client && npm start",
     "start": "concurrently \"npm run server\" \"npm run client\" \"npm run open\"",
+    "start:mongodb": "concurrently \"npm run server:mongodb\" \"npm run client\" \"npm run open\"",
     "open": "node open-browser.js"
   },
   "keywords": [
