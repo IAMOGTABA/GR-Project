@@ -1,80 +1,113 @@
 # Task Management System
 
-A full-featured task management application built with the MERN stack (MongoDB, Express, React, Node.js). The system allows for task assignment, tracking, user management, and notifications.
+A comprehensive task management system with PHP backend and RESTful API.
 
-## Features
+## Project Structure
 
-- **Task Management**: Create, assign, update, and delete tasks
-- **User Management**: Admin can manage users, update roles and permissions
-- **Notifications**: System-wide notifications for task updates and important announcements
-- **Responsive Design**: Works on desktops, tablets, and mobile devices
+```
+task-management-system/
+├── php-backend/
+│   ├── api/
+│   │   ├── auth/
+│   │   │   ├── login.php
+│   │   │   └── register.php
+│   │   ├── tasks/
+│   │   │   ├── create.php
+│   │   │   ├── delete.php
+│   │   │   ├── read.php
+│   │   │   ├── read_single.php
+│   │   │   └── update.php
+│   │   └── users/
+│   │       ├── create.php
+│   │       ├── delete.php
+│   │       ├── read.php
+│   │       ├── read_single.php
+│   │       └── update.php
+│   ├── config/
+│   │   ├── config.php
+│   │   ├── database.php
+│   │   └── schema.sql
+│   ├── models/
+│   │   ├── Task.php
+│   │   └── User.php
+│   ├── utils/
+│   │   └── JWT.php
+│   └── index.php
+└── README.md
+```
 
-## Tech Stack
+## Setup Instructions
 
-- **Frontend**: React.js, React Router, CSS
-- **Backend**: Node.js, Express.js
-- **Database**: MongoDB
-- **Authentication**: JWT (JSON Web Tokens)
+1. **Database Setup**
+   - Create a MySQL database
+   - Import the schema from `php-backend/config/schema.sql`
+   - Update database credentials in `php-backend/config/config.php`
 
-## Getting Started
+2. **Server Configuration**
+   - Configure your web server (Apache/Nginx) to point to the `php-backend` directory
+   - Ensure PHP 7.4+ is installed with PDO and MySQL extensions enabled
 
-### Prerequisites
+3. **API Testing**
+   - Access the API at `http://your-server/`
+   - Use the endpoints documented below
 
-- Node.js (v14 or higher)
-- MongoDB (local instance or MongoDB Atlas)
+## API Endpoints
 
-### Installation
+### Authentication
 
-1. Clone the repository:
-   ```
-   git clone [repository-url]
-   cd task-management-system
-   ```
+- **Login**: `POST /api/auth/login.php`
+  - Request: `{ "email": "user@example.com", "password": "password" }`
+  - Response: `{ "success": true, "token": "JWT_TOKEN", "user": { ... } }`
 
-2. Install server dependencies:
-   ```
-   cd server
-   npm install
-   ```
+- **Register**: `POST /api/auth/register.php`
+  - Request: `{ "name": "User Name", "email": "user@example.com", "password": "password" }`
+  - Response: `{ "success": true, "message": "User created", "user": { ... } }`
 
-3. Install client dependencies:
-   ```
-   cd ../client
-   npm install
-   ```
+### Users
 
-4. Create a `.env` file in the server directory with the following variables:
-   ```
-   PORT=5000
-   MONGODB_URI=mongodb://localhost:27017/task_management_db
-   JWT_SECRET=your_secret_key
-   JWT_EXPIRE=30d
-   ```
+- **Get All Users**: `GET /api/users/read.php`
+- **Get Single User**: `GET /api/users/read_single.php?id=1`
+- **Create User**: `POST /api/users/create.php`
+- **Update User**: `PUT /api/users/update.php`
+- **Delete User**: `DELETE /api/users/delete.php`
 
-### Running the Application
+### Tasks
 
-1. Start the MongoDB server (if using local instance)
+- **Get All Tasks**: `GET /api/tasks/read.php`
+- **Get Tasks by User**: `GET /api/tasks/read.php?user_id=1`
+- **Get Tasks by Status**: `GET /api/tasks/read.php?status=pending`
+- **Search Tasks**: `GET /api/tasks/read.php?search=keyword`
+- **Get Single Task**: `GET /api/tasks/read_single.php?id=1`
+- **Create Task**: `POST /api/tasks/create.php`
+  - Request: `{ "title": "Task Title", "description": "Task Description", "due_date": "2023-12-31", "priority": "high", "status": "pending", "created_by": 1 }`
+- **Update Task**: `PUT /api/tasks/update.php`
+- **Delete Task**: `DELETE /api/tasks/delete.php`
 
-2. Start the server:
-   ```
-   cd server
-   npm start
-   ```
+## Authentication
 
-3. Start the client in a new terminal:
-   ```
-   cd client
-   npm start
-   ```
+All endpoints except login and register require authentication using JWT token.
+Include the token in the request header:
 
-4. Open your browser and navigate to `http://localhost:3000`
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+```
 
-## Default Accounts
+## Error Handling
 
-The system comes with pre-created test accounts:
+All API responses follow this structure:
+```json
+{
+  "success": true|false,
+  "message": "Success or error message",
+  "data": { ... } // Optional data object
+}
+```
 
-- **Admin**: admin@example.com (Password: 123456)
-- **User**: user@example.com (Password: 123456)
+## Default Users
+
+The schema includes two default users:
+- Admin: admin@example.com / admin123
+- User: user@example.com / user123
 
 ## License
 

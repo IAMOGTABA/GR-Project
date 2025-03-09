@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Management System API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Task Management System API Test</h1>
+
+    <div class="test-section">
+        <h2>Database Connection Test</h2>
+        <button id="testConnection">Test Connection</button>
+        <pre id="connectionResult">Results will appear here...</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Database Setup</h2>
+        <button id="setupDatabase">Setup Database</button>
+        <pre id="setupResult">Results will appear here...</pre>
+    </div>
+
+    <div class="grid">
+        <div class="test-section">
+            <h2>Register User</h2>
+            <form id="registerForm">
+                <div>
+                    <label for="registerName">Name:</label>
+                    <input type="text" id="registerName" value="Test User">
+                </div>
+                <div>
+                    <label for="registerEmail">Email:</label>
+                    <input type="email" id="registerEmail" value="test@example.com">
+                </div>
+                <div>
+                    <label for="registerPassword">Password:</label>
+                    <input type="password" id="registerPassword" value="password123">
+                </div>
+                <button type="submit">Register</button>
+            </form>
+            <pre id="registerResult">Results will appear here...</pre>
+        </div>
+
+        <div class="test-section">
+            <h2>Login</h2>
+            <form id="loginForm">
+                <div>
+                    <label for="loginEmail">Email:</label>
+                    <input type="email" id="loginEmail" value="user@example.com">
+                </div>
+                <div>
+                    <label for="loginPassword">Password:</label>
+                    <input type="password" id="loginPassword" value="user123">
+                </div>
+                <button type="submit">Login</button>
+            </form>
+            <pre id="loginResult">Results will appear here...</pre>
+            <div id="tokenContainer" style="display: none;">
+                <p>Token received and stored. You can now use authenticated endpoints.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="test-section">
+            <h2>Get All Users</h2>
+            <button id="getUsers">Get Users</button>
+            <pre id="usersResult">Results will appear here...</pre>
+        </div>
+
+        <div class="test-section">
+            <h2>Get All Tasks</h2>
+            <button id="getTasks">Get Tasks</button>
+            <pre id="tasksResult">Results will appear here...</pre>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Create Task</h2>
+        <form id="createTaskForm">
+            <div>
+                <label for="taskTitle">Title:</label>
+                <input type="text" id="taskTitle" value="Test Task">
+            </div>
+            <div>
+                <label for="taskDescription">Description:</label>
+                <textarea id="taskDescription">This is a test task created via the API test page.</textarea>
+            </div>
+            <div>
+                <label for="taskDueDate">Due Date:</label>
+                <input type="date" id="taskDueDate">
+            </div>
+            <div>
+                <label for="taskPriority">Priority:</label>
+                <select id="taskPriority">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+            <div>
+                <label for="taskStatus">Status:</label>
+                <select id="taskStatus">
+                    <option value="pending" selected>Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+            <button type="submit">Create Task</button>
+        </form>
+        <pre id="createTaskResult">Results will appear here...</pre>
+    </div>
+
+    <script>
+        // Global variables
+        let authToken = '';
+
+        // Set today's date as default for due date
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            const formattedDate = today.toISOString().split('T')[0];
+            document.getElementById('taskDueDate').value = formattedDate;
+        });
+
+        // Helper functions
+        function formatJson(json) {
+            try {
+                return JSON.stringify(JSON.parse(json), null, 2);
+            } catch (e) {
+                return json;
+            }
+        }
+
+        async function fetchApi(url, options = {}) {
+            try {
+                const response = await fetch(url, options);
+                const text = await response.text();
+                return formatJson(text);
+            } catch (error) {
+                return JSON.stringify({ error: error.message }, null, 2);
+            }
+        }
+
+        function setAuthHeader(headers = {}) {
+            if (authToken) {
+                return {
+                    ...headers,
+                    'Authorization': `Bearer ${authToken}`
+                };
+            }
+            return headers;
+        }
+
+        // Test database connection
+        document.getElementById('testConnection').addEventListener('click', async () => {
+            const resultElement = document.getElementById('connectionResult');
+            resultElement.textContent = 'Testing connection...';
+            
+            const result = await fetchApi('test-connection.php');
+            resultElement.textContent = result;
+        });
+
+        // Setup database
+        document.getElementById('setupDatabase').addEventListener('click', async () => {
+            const resultElement = document.getElementById('setupResult');
+            resultElement.textContent = 'Setting up database...';
+            
+            const result = await fetchApi('setup-database.php');
+            resultElement.textContent = result;
+        });
+
+        // Register user
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultElement = document.getElementById('registerResult');
+            resultElement.textContent = 'Registering user...';
+            
+            const data = {
+                name: document.getElementById('registerName').value,
+                email: document.getElementById('registerEmail').value,
+                password: document.getElementById('registerPassword').value
+            };
+            
+            const result = await fetchApi('api/auth/register.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            resultElement.textContent = result;
+        });
+
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultElement = document.getElementById('loginResult');
+            resultElement.textContent = 'Logging in...';
+            
+            const data = {
+                email: document.getElementById('loginEmail').value,
+                password: document.getElementById('loginPassword').value
+            };
+            
+            const result = await fetchApi('api/auth/login.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            resultElement.textContent = result;
+            
+            // Store token if login successful
+            try {
+                const resultObj = JSON.parse(result);
+                if (resultObj.success && resultObj.token) {
+                    authToken = resultObj.token;
+                    document.getElementById('tokenContainer').style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Error parsing login response:', e);
+            }
+        });
+
+        // Get all users
+        document.getElementById('getUsers').addEventListener('click', async () => {
+            const resultElement = document.getElementById('usersResult');
+            resultElement.textContent = 'Fetching users...';
+            
+            const result = await fetchApi('api/users/read.php', {
+                headers: setAuthHeader()
+            });
+            
+            resultElement.textContent = result;
+        });
+
+        // Get all tasks
+        document.getElementById('getTasks').addEventListener('click', async () => {
+            const resultElement = document.getElementById('tasksResult');
+            resultElement.textContent = 'Fetching tasks...';
+            
+            const result = await fetchApi('api/tasks/read.php', {
+                headers: setAuthHeader()
+            });
+            
+            resultElement.textContent = result;
+        });
+
+        // Create task
+        document.getElementById('createTaskForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultElement = document.getElementById('createTaskResult');
+            resultElement.textContent = 'Creating task...';
+            
+            const data = {
+                title: document.getElementById('taskTitle').value,
+                description: document.getElementById('taskDescription').value,
+                due_date: document.getElementById('taskDueDate').value,
+                priority: document.getElementById('taskPriority').value,
+                status: document.getElementById('taskStatus').value
+            };
+            
+            const result = await fetchApi('api/tasks/create.php', {
+                method: 'POST',
+                headers: setAuthHeader({
+                    'Content-Type': 'application/json'
+                }),
+                body: JSON.stringify(data)
+            });
+            
+            resultElement.textContent = result;
+        });
+    </script>
+</body>
+</html> 

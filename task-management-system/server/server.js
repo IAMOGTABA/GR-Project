@@ -13,7 +13,12 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -202,109 +207,28 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-// API routes
-app.get('/api/health', async (req, res) => {
-  try {
-    // Check database connection by performing a simple operation
-    const dbStatus = mongoose.connection.readyState;
-    /*
-      0 = disconnected
-      1 = connected
-      2 = connecting
-      3 = disconnecting
-    */
-    let dbStatusText;
-    switch(dbStatus) {
-      case 0:
-        dbStatusText = 'Disconnected';
-        break;
-      case 1:
-        dbStatusText = 'Connected';
-        break;
-      case 2:
-        dbStatusText = 'Connecting';
-        break;
-      case 3:
-        dbStatusText = 'Disconnecting';
-        break;
-      default:
-        dbStatusText = 'Unknown';
-    }
-
-    // Perform a simple database operation to verify connectivity
-    let testResult = false;
-    try {
-      const Test = mongoose.model('ConnectionTest', 
-        new mongoose.Schema({ name: String, date: { type: Date, default: Date.now } })
-      );
-      await Test.findOne({});
-      testResult = true;
-    } catch(err) {
-      console.error('Database test operation failed:', err.message);
-    }
-
-    res.status(200).json({ 
-      status: 'API is running', 
-      database: {
-        state: dbStatus,
-        status: dbStatusText,
-        type: process.env.USE_MEMORY_DB === 'true' ? 'In-Memory MongoDB' : 'MongoDB',
-        testResult: testResult ? 'Successful' : 'Failed'
-      },
-      timestamp: new Date()
-    });
-  } catch (err) {
-    res.status(500).json({ 
-      status: 'Error', 
-      error: err.message,
-      timestamp: new Date()
-    });
-  }
-});
-
-// Connect to Database
+// Connect to MongoDB using MongoDB Memory Server
 const PORT = process.env.PORT || 5000;
-let server;
-let mongoServer;
-
-// Import database initialization script
-const initializeDatabase = require('./scripts/ensure-db');
 
 async function startServer() {
   try {
-    console.log('Starting server in', process.env.NODE_ENV, 'mode');
+    // Create an in-memory MongoDB instance
+    const mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
     
-    // Initialize database with the script
-    const result = await initializeDatabase();
-    if (result && result.mongoServer) {
-      mongoServer = result.mongoServer;
-    }
+    console.log('Connecting to in-memory MongoDB at:', mongoUri);
     
-    // Start Express server
-    server = app.listen(PORT, () => console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`));
-
-    // Handle shutdown gracefully
-    process.on('SIGTERM', shutDown);
-    process.on('SIGINT', shutDown);
-  } catch (err) {
-    console.error('Server startup error:', err);
-    process.exit(1);
-  }
-}
-
-// Graceful shutdown function
-function shutDown() {
-  console.log('Received kill signal, shutting down gracefully');
-  if (server) {
-    server.close(() => {
-      console.log('Server closed');
-      mongoose.connection.close(false, () => {
-        console.log('MongoDB connection closed');
-        process.exit(0);
-      });
+    await mongoose.connect(mongoUri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
     });
-  } else {
-    process.exit(0);
+    
+    console.log('Connected to in-memory MongoDB successfully!');
+    
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
   }
 }
 
@@ -314,10 +238,4 @@ startServer();
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send({ message: 'Something went wrong!' });
-});
-
-// Open Developer Console in your browser and run:
-fetch('http://localhost:5000/api/health')
-  .then(response => response.json())
-  .then(data => console.log('Database status:', data.database))
-  .catch(error => console.error('Error checking database:', error)); 
+}); 
