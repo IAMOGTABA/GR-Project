@@ -10,8 +10,11 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5000 ^| findstr LISTENING') 
 REM Change to the php-backend directory
 cd php-backend
 
-REM Start PHP server in a new command window
-start "PHP Server - Task Management System" cmd /k ""E:\Graduation Project 2\GR-Project\php\php.exe" -d extension_dir="E:\Graduation Project 2\GR-Project\php\ext" -d extension=mysqli -d extension=pdo_mysql -d extension=mbstring -S localhost:5000"
+REM Start PHP server
+php -S localhost:5000
+
+REM Wait for user input
+pause
 
 REM Provide feedback
 echo.

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiCheckCircle, FiClock, FiAlertTriangle, FiEye, FiEdit, FiXCircle } from 'react-icons/fi';
+import { taskService } from '../../services/api';
 import './TaskList.css';
 
 const TaskList = () => {
@@ -8,63 +9,87 @@ const TaskList = () => {
   const [filter, setFilter] = useState('all');
   const [selectedTask, setSelectedTask] = useState(null);
   const [showTaskDetail, setShowTaskDetail] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    // Simulate API call to get tasks
+    // Fetch tasks from the API
     const fetchTasks = async () => {
-      // This would be replaced with an actual API call
-      setTimeout(() => {
-        const mockTasks = [
-          {
-            id: 1,
-            title: 'Complete project documentation',
-            description: 'Write detailed documentation for the new task management system',
-            status: 'pending',
-            priority: 'high',
-            dueDate: '2023-06-15',
-            assignedTo: 'John Doe',
-            createdBy: 'Admin User',
-            createdAt: '2023-06-01'
-          },
-          {
-            id: 2,
-            title: 'Fix login page bug',
-            description: 'There is an issue with the login form validation',
-            status: 'in-progress',
-            priority: 'medium',
-            dueDate: '2023-06-10',
-            assignedTo: 'John Doe',
-            createdBy: 'Admin User',
-            createdAt: '2023-06-02'
-          },
-          {
-            id: 3,
-            title: 'Design new dashboard',
-            description: 'Create wireframes for the new admin dashboard',
-            status: 'overdue',
-            priority: 'high',
-            dueDate: '2023-06-05',
-            assignedTo: 'Jane Smith',
-            createdBy: 'Admin User',
-            createdAt: '2023-06-01'
-          },
-          {
-            id: 4,
-            title: 'Update user profile page',
-            description: 'Add new fields to the user profile form',
-            status: 'completed',
-            priority: 'low',
-            dueDate: '2023-06-08',
-            assignedTo: 'John Doe',
-            createdBy: 'Admin User',
-            completedAt: '2023-06-07',
-            createdAt: '2023-06-03'
-          }
-        ];
+      setIsLoading(true);
+      try {
+        const response = await taskService.getAllTasks();
         
-        setTasks(mockTasks);
+        if (response.success) {
+          console.log('Tasks fetched successfully:', response.data);
+          setTasks(response.data || []);
+          setError('');
+        } else {
+          console.error('Failed to fetch tasks:', response.message);
+          setError(response.message || 'Failed to load tasks');
+          // Load mock data as fallback
+          loadMockData();
+        }
+      } catch (err) {
+        console.error('Error fetching tasks:', err);
+        setError('Error connecting to the server. Showing demo data.');
+        // Load mock data as fallback
+        loadMockData();
+      } finally {
         setIsLoading(false);
-      }, 1000);
+      }
+    };
+
+    // Fallback to mock data if API fails
+    const loadMockData = () => {
+      const mockTasks = [
+        {
+          id: 1,
+          title: 'Complete project documentation',
+          description: 'Write detailed documentation for the new task management system',
+          status: 'pending',
+          priority: 'high',
+          dueDate: '2023-06-15',
+          assignedTo: 'John Doe',
+          createdBy: 'Admin User',
+          createdAt: '2023-06-01'
+        },
+        {
+          id: 2,
+          title: 'Fix login page bug',
+          description: 'There is an issue with the login form validation',
+          status: 'in-progress',
+          priority: 'medium',
+          dueDate: '2023-06-10',
+          assignedTo: 'John Doe',
+          createdBy: 'Admin User',
+          createdAt: '2023-06-02'
+        },
+        {
+          id: 3,
+          title: 'Design new dashboard',
+          description: 'Create wireframes for the new admin dashboard',
+          status: 'overdue',
+          priority: 'high',
+          dueDate: '2023-06-05',
+          assignedTo: 'Jane Smith',
+          createdBy: 'Admin User',
+          createdAt: '2023-06-01'
+        },
+        {
+          id: 4,
+          title: 'Update user profile page',
+          description: 'Add new fields to the user profile form',
+          status: 'completed',
+          priority: 'low',
+          dueDate: '2023-06-08',
+          assignedTo: 'John Doe',
+          createdBy: 'Admin User',
+          completedAt: '2023-06-07',
+          createdAt: '2023-06-03'
+        }
+      ];
+      
+      setTasks(mockTasks);
+      console.log('Loaded mock task data as fallback');
     };
 
     fetchTasks();
@@ -97,16 +122,38 @@ const TaskList = () => {
   };
 
   // Handle mark as complete
-  const handleMarkComplete = (id) => {
-    const updatedTasks = tasks.map(task => 
-      task.id === id 
-      ? { ...task, status: 'completed', completedAt: new Date().toLocaleString() } 
-      : task
-    );
-    setTasks(updatedTasks);
-    
-    // Show success message
-    alert(`Task #${id} marked as complete!`);
+  const handleMarkComplete = async (id) => {
+    try {
+      const response = await taskService.updateTask(id, { status: 'completed' });
+      
+      if (response.success) {
+        // Update local state
+        const updatedTasks = tasks.map(task => 
+          task.id === id 
+          ? { ...task, status: 'completed', completedAt: new Date().toISOString() } 
+          : task
+        );
+        setTasks(updatedTasks);
+        
+        // Show success message
+        alert(`Task #${id} marked as complete!`);
+      } else {
+        // Show error message
+        alert(`Failed to update task: ${response.message}`);
+      }
+    } catch (err) {
+      console.error('Error updating task:', err);
+      
+      // Fallback to client-side update if API fails
+      const updatedTasks = tasks.map(task => 
+        task.id === id 
+        ? { ...task, status: 'completed', completedAt: new Date().toISOString() } 
+        : task
+      );
+      setTasks(updatedTasks);
+      
+      alert(`Task #${id} marked as complete (offline mode)`);
+    }
   };
 
   // Handle view task details
@@ -116,16 +163,38 @@ const TaskList = () => {
   };
 
   // Handle change task status
-  const handleChangeStatus = (id, newStatus) => {
-    const updatedTasks = tasks.map(task => 
-      task.id === id 
-      ? { ...task, status: newStatus } 
-      : task
-    );
-    setTasks(updatedTasks);
-    
-    // Show success message
-    alert(`Task status updated to: ${newStatus}`);
+  const handleChangeStatus = async (id, newStatus) => {
+    try {
+      const response = await taskService.updateTask(id, { status: newStatus });
+      
+      if (response.success) {
+        // Update local state
+        const updatedTasks = tasks.map(task => 
+          task.id === id 
+          ? { ...task, status: newStatus } 
+          : task
+        );
+        setTasks(updatedTasks);
+        
+        // Show success message
+        alert(`Task status updated to: ${newStatus}`);
+      } else {
+        // Show error message
+        alert(`Failed to update task status: ${response.message}`);
+      }
+    } catch (err) {
+      console.error('Error updating task status:', err);
+      
+      // Fallback to client-side update if API fails
+      const updatedTasks = tasks.map(task => 
+        task.id === id 
+        ? { ...task, status: newStatus } 
+        : task
+      );
+      setTasks(updatedTasks);
+      
+      alert(`Task status updated to: ${newStatus} (offline mode)`);
+    }
   };
 
   // Close task detail modal
@@ -145,6 +214,8 @@ const TaskList = () => {
 
   return (
     <div className="task-list-container">
+      {error && <div className="alert alert-danger">{error}</div>}
+      
       <div className="task-list-header">
         <h1>{userRole === 'admin' ? 'All Tasks' : 'My Tasks'}</h1>
         <div className="task-filters">

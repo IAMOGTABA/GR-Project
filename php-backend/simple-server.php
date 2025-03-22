@@ -1,14 +1,9 @@
 <?php
 /**
- * Task Management System API - Entry Point
- * This file serves as the entry point for all API requests
+ * Simple PHP Server for testing
  */
 
-// Error handling
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Set CORS headers to allow all origins
+// Set appropriate headers
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -20,9 +15,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
-// Get the request URI and method
+// Basic routing
 $request_uri = $_SERVER['REQUEST_URI'];
 $method = $_SERVER['REQUEST_METHOD'];
+
+// Remove query string if any
+$request_uri = strtok($request_uri, '?');
 
 // Simple router
 if ($request_uri == '/' || $request_uri == '') {
@@ -34,19 +32,24 @@ if ($request_uri == '/' || $request_uri == '') {
         'endpoints' => [
             '/api/auth/login' => 'POST - Login endpoint',
             '/api/tasks' => 'GET - List all tasks',
-            '/api/tasks/:id' => 'GET - Get task by ID',
-            '/api/users' => 'GET - List all users'
-        ],
+            '/test' => 'GET - Test endpoint'
+        ]
+    ]);
+} 
+else if ($request_uri == '/test') {
+    // Test endpoint
+    echo json_encode([
+        'success' => true,
+        'message' => 'Test endpoint working!',
         'timestamp' => date('Y-m-d H:i:s'),
-        'php_version' => PHP_VERSION
-    ], JSON_PRETTY_PRINT);
-    exit();
+        'method' => $method
+    ]);
 }
-
-// Auth endpoints
-if ($request_uri == '/api/auth/login' && $method == 'POST') {
+else if ($request_uri == '/api/auth/login' && $method == 'POST') {
+    // Login endpoint
     $data = json_decode(file_get_contents('php://input'), true);
     
+    // Simple validation
     if (!isset($data['email']) || !isset($data['password'])) {
         http_response_code(400);
         echo json_encode([
@@ -56,24 +59,20 @@ if ($request_uri == '/api/auth/login' && $method == 'POST') {
         exit();
     }
     
-    $email = $data['email'];
-    $password = $data['password'];
-    
-    if (($email == 'admin@example.com' && $password == 'admin123') || 
-        ($email == 'employee@example.com' && $password == 'employee123')) {
+    // Demo authentication
+    if (($data['email'] === 'admin@example.com' && $data['password'] === 'admin123') || 
+        ($data['email'] === 'employee@example.com' && $data['password'] === 'employee123')) {
         
-        $role = ($email == 'admin@example.com') ? 'admin' : 'employee';
-        $name = ($email == 'admin@example.com') ? 'Admin User' : 'Regular Employee';
-        
-        $token = 'demo-token-' . base64_encode($email . ':' . time());
+        $role = ($data['email'] === 'admin@example.com') ? 'admin' : 'employee';
+        $name = ($data['email'] === 'admin@example.com') ? 'Admin User' : 'Regular Employee';
         
         echo json_encode([
             'success' => true,
             'message' => 'Login successful',
             'data' => [
-                'token' => $token,
+                'token' => 'demo-token-' . time(),
                 'user' => [
-                    'email' => $email,
+                    'email' => $data['email'],
                     'name' => $name,
                     'role' => $role
                 ]
@@ -86,11 +85,9 @@ if ($request_uri == '/api/auth/login' && $method == 'POST') {
             'message' => 'Invalid email or password'
         ]);
     }
-    exit();
 }
-
-// Tasks endpoints
-if ($request_uri == '/api/tasks' && $method == 'GET') {
+else if ($request_uri == '/api/tasks' && $method == 'GET') {
+    // Tasks endpoint
     $tasks = [
         [
             'id' => 1,
@@ -144,64 +141,13 @@ if ($request_uri == '/api/tasks' && $method == 'GET') {
         'message' => 'Tasks retrieved successfully',
         'data' => $tasks
     ]);
-    exit();
 }
-
-// Users endpoints
-if ($request_uri == '/api/users' && $method == 'GET') {
-    $users = [
-        [
-            'id' => 1,
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
-            'role' => 'admin'
-        ],
-        [
-            'id' => 2,
-            'name' => 'Regular Employee',
-            'email' => 'employee@example.com',
-            'role' => 'employee'
-        ],
-        [
-            'id' => 3,
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'role' => 'employee'
-        ],
-        [
-            'id' => 4,
-            'name' => 'Jane Smith',
-            'email' => 'jane@example.com',
-            'role' => 'employee'
-        ]
-    ];
-    
+else {
+    // 404 Not Found
+    http_response_code(404);
     echo json_encode([
-        'success' => true,
-        'message' => 'Users retrieved successfully',
-        'data' => $users
+        'success' => false,
+        'message' => 'Endpoint not found: ' . $request_uri
     ]);
-    exit();
 }
-
-// Task update endpoint (simple implementation)
-if (preg_match('/^\/api\/tasks\/update\/(\d+)$/', $request_uri, $matches) && $method == 'PUT') {
-    $id = $matches[1];
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    echo json_encode([
-        'success' => true,
-        'message' => 'Task updated successfully',
-        'data' => array_merge(['id' => intval($id)], $data)
-    ]);
-    exit();
-}
-
-// 404 Not Found - if no endpoint matched
-http_response_code(404);
-echo json_encode([
-    'success' => false,
-    'message' => 'Endpoint not found: ' . $request_uri,
-    'method' => $method
-]);
 ?> 

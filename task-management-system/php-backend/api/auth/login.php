@@ -5,67 +5,73 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Access-Control-Allow-Headers, Content-Type, Access-Control-Allow-Methods, Authorization, X-Requested-With');
 
-// Include files
-require_once '../../includes/User.php';
-require_once '../../includes/JWT.php';
-
-// Get posted data
-$data = json_decode(file_get_contents("php://input"));
-
-// Initialize response
-$response = array(
-    'success' => false,
-    'message' => '',
-    'data' => null
-);
-
-// Check if required fields are provided
-if(!isset($data->email) || !isset($data->password)) {
-    $response['message'] = 'Email and password are required';
-    echo json_encode($response);
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
     exit();
 }
 
-// Create user object
-$user = new User();
-$user->email = $data->email;
+// Get posted data
+$data = json_decode(file_get_contents('php://input'), true);
 
-// Check if user exists
-if($user->getByEmail()) {
-    // Check password
-    if($user->verifyPassword($data->password)) {
-        // User matched
-        $token_payload = array(
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role
-        );
-        
-        // Generate JWT
-        $token = JWT::generate($token_payload);
-        
-        $response['success'] = true;
-        $response['message'] = 'Login successful';
-        $response['data'] = array(
-            'token' => $token,
-            'user' => array(
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-                'department' => $user->department,
-                'position' => $user->position,
-                'phone' => $user->phone,
-                'avatar' => $user->avatar
-            )
-        );
-    } else {
-        $response['message'] = 'Invalid password';
-    }
-} else {
-    $response['message'] = 'User not found';
+// Check for required fields
+if (!isset($data['email']) || !isset($data['password'])) {
+    http_response_code(400);
+    echo json_encode(array(
+        'success' => false,
+        'message' => 'Email and password are required'
+    ));
+    exit();
 }
 
-// Return response
-echo json_encode($response); 
+// Static user credentials for demo
+$valid_users = array(
+    array(
+        'email' => 'admin@example.com',
+        'password' => 'admin123',
+        'name' => 'Admin User',
+        'role' => 'admin'
+    ),
+    array(
+        'email' => 'user@example.com',
+        'password' => 'user123',
+        'name' => 'Regular User',
+        'role' => 'user'
+    )
+);
+
+// Check credentials
+$authenticated = false;
+$user = null;
+
+foreach ($valid_users as $valid_user) {
+    if ($data['email'] === $valid_user['email'] && $data['password'] === $valid_user['password']) {
+        $authenticated = true;
+        $user = $valid_user;
+        break;
+    }
+}
+
+if ($authenticated) {
+    // Generate a simple token
+    $token = 'demo-token-' . base64_encode($user['email'] . ':' . time());
+    
+    echo json_encode(array(
+        'success' => true,
+        'message' => 'Login successful',
+        'data' => array(
+            'token' => $token,
+            'user' => array(
+                'name' => $user['name'],
+                'email' => $user['email'],
+                'role' => $user['role']
+            )
+        )
+    ));
+} else {
+    http_response_code(401);
+    echo json_encode(array(
+        'success' => false,
+        'message' => 'Invalid email or password'
+    ));
+} 

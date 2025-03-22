@@ -3,98 +3,177 @@
  * Task Management System - PHP Backend
  */
 
-// Headers
+// Enable error reporting
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Custom error handler
+function apiErrorHandler($errno, $errstr, $errfile, $errline) {
+    $response = array(
+        'success' => false,
+        'message' => 'Server error occurred',
+        'error' => array(
+            'type' => $errno,
+            'message' => $errstr,
+            'file' => $errfile,
+            'line' => $errline
+        )
+    );
+    
+    http_response_code(500);
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit();
+}
+
+// Set custom error handler for non-fatal errors
+set_error_handler('apiErrorHandler', E_ALL & ~E_NOTICE & ~E_WARNING);
+
+// Set headers
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization');
-header('Content-Type: application/json; charset=UTF-8');
+header('Content-Type: application/json');
 
 // Handle preflight requests
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// Get request URI
-$request_uri = $_SERVER['REQUEST_URI'];
-$base_path = '/'; // Update this if your API is in a subdirectory
+// Get request URI and method
+$uri = $_SERVER['REQUEST_URI'];
+$method = $_SERVER['REQUEST_METHOD'];
 
-// Remove base path from the request URI
-if (strpos($request_uri, $base_path) === 0) {
-    $request_uri = substr($request_uri, strlen($base_path));
-}
+// Debug logging
+error_log("Original Request URI: " . $uri);
+error_log("Request Method: " . $method);
+error_log("Server Variables: " . print_r($_SERVER, true));
+error_log("Headers: " . print_r(getallheaders(), true));
 
-// Remove query string from the request URI
-$request_uri = strtok($request_uri, '?');
+// Remove query string from URI
+$uri = strtok($uri, '?');
+error_log("URI after removing query string: " . $uri);
 
-// Route the request
+// Remove .php extension if present
+$uri = preg_replace('/\.php$/', '', $uri);
+error_log("URI after removing .php extension: " . $uri);
+
+// Define routes
 $routes = [
-    'api/auth/login' => 'api/auth/login.php',
-    'api/auth/register' => 'api/auth/register.php',
-    'api/users' => 'api/users/read.php',
-    'api/users/create' => 'api/users/create.php',
-    'api/users/update' => 'api/users/update.php',
-    'api/users/delete' => 'api/users/delete.php',
-    'api/tasks' => 'api/tasks/read.php',
-    'api/tasks/create' => 'api/tasks/create.php',
-    'api/tasks/update' => 'api/tasks/update.php',
-    'api/tasks/delete' => 'api/tasks/delete.php',
+    '/' => function() {
+        return [
+            'success' => true,
+            'message' => 'Task Management System API is running',
+            'version' => '1.0.0',
+            'endpoints' => [
+                '/api/auth/login' => 'POST - Login endpoint',
+                '/api/tasks' => 'GET - List all tasks',
+                '/api/tasks/:id' => 'GET - Get task by ID',
+                '/api/users' => 'GET - List all users'
+            ],
+            'timestamp' => date('Y-m-d H:i:s'),
+            'php_version' => PHP_VERSION
+        ];
+    },
+    '/api/tasks' => function() {
+        error_log("Handling /api/tasks route");
+        
+        // Get headers for debugging
+        $headers = getallheaders();
+        error_log("Request Headers: " . print_r($headers, true));
+        
+        // Static tasks data for testing
+        $tasks = [
+            [
+                'id' => 1,
+                'title' => 'Complete project documentation',
+                'description' => 'Write detailed documentation for the new task management system',
+                'status' => 'pending',
+                'priority' => 'high',
+                'due_date' => '2024-06-15',
+                'assigned_to' => 'John Doe',
+                'created_by' => 'Admin User',
+                'created_at' => '2024-06-01'
+            ],
+            [
+                'id' => 2,
+                'title' => 'Fix login page bug',
+                'description' => 'There is an issue with the login form validation',
+                'status' => 'in-progress',
+                'priority' => 'medium',
+                'due_date' => '2024-06-10',
+                'assigned_to' => 'John Doe',
+                'created_by' => 'Admin User',
+                'created_at' => '2024-06-02'
+            ]
+        ];
+        
+        $response = [
+            'success' => true,
+            'message' => 'Tasks retrieved successfully',
+            'count' => count($tasks),
+            'data' => $tasks
+        ];
+        
+        error_log("Sending response: " . json_encode($response));
+        return $response;
+    }
 ];
 
-// Check if the route exists
-$found = false;
-foreach ($routes as $route => $file) {
-    if ($request_uri === $route || strpos($request_uri, $route . '/') === 0) {
-        $found = true;
-        if (file_exists($file)) {
-            require_once $file;
-        } else {
-            http_response_code(404);
-            echo json_encode([
-                'success' => false,
-                'message' => 'API endpoint file not found: ' . $file
-            ]);
-        }
+// Debug logging
+error_log("Available routes: " . implode(', ', array_keys($routes)));
+
+// Find matching route
+$matched = false;
+foreach ($routes as $route => $handler) {
+    error_log("Checking route: " . $route);
+    if ($uri === $route) {
+        error_log("Route matched: " . $route);
+        $matched = true;
+        $response = $handler();
+        echo json_encode($response);
         break;
     }
 }
 
-// If no route is found, return the API information
-if (!$found) {
-    // Default response - API information
-    $response = [
-        'success' => true,
-        'message' => 'Task Management System API is running',
-        'version' => '1.0.0',
-        'php_version' => phpversion(),
-        'mysql_version' => extension_loaded('mysqli') ? mysqli_get_client_info() : 'Not available',
-        'endpoints' => [
-            'auth' => [
-                'login' => '/api/auth/login',
-                'register' => '/api/auth/register'
-            ],
-            'users' => [
-                'read' => '/api/users',
-                'single' => '/api/users/{id}',
-                'create' => '/api/users/create',
-                'update' => '/api/users/update',
-                'delete' => '/api/users/delete'
-            ],
-            'tasks' => [
-                'read' => '/api/tasks',
-                'single' => '/api/tasks/{id}',
-                'create' => '/api/tasks/create',
-                'update' => '/api/tasks/update',
-                'delete' => '/api/tasks/delete',
-                'by_user' => '/api/tasks?user_id={user_id}',
-                'by_status' => '/api/tasks?status={status}',
-                'search' => '/api/tasks?search={search_term}'
-            ]
-        ]
-    ];
-    
-    // Ensure JSON response is properly formatted
-    http_response_code(200);
-    echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    exit();
-} 
+// Handle not found
+if (!$matched) {
+    error_log("No route matched for URI: " . $uri);
+    http_response_code(404);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Endpoint not found',
+        'uri' => $uri,
+        'method' => $method,
+        'available_routes' => array_keys($routes)
+    ]);
+}
+
+// Handle any uncaught exceptions
+function handleUncaughtException($e) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode(array(
+        'success' => false,
+        'message' => 'Uncaught exception: ' . $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ), JSON_PRETTY_PRINT);
+}
+
+set_exception_handler('handleUncaughtException');
+
+// Return debug information
+echo json_encode([
+    'success' => true,
+    'message' => 'Debug information',
+    'request' => [
+        'uri' => $uri,
+        'method' => $method,
+        'headers' => getallheaders(),
+        'server' => $_SERVER
+    ]
+]);
+?> 

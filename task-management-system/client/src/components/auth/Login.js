@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { FiUser, FiLock, FiLoader } from 'react-icons/fi';
+import { authService } from '../../services/api';
 
 const Login = ({ setIsAuthenticated }) => {
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const { username, password } = formData;
+  const { email, password } = formData;
 
   const onChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -24,34 +24,10 @@ const Login = ({ setIsAuthenticated }) => {
     setLoading(true);
 
     try {
-      // For demo purposes, let's simulate login
-      // In a real app, this would make an API call to your backend
-      // const res = await axios.post('/api/auth/login', formData);
+      // Use our API service for login
+      const result = await authService.login(formData);
       
-      setTimeout(() => {
-        // Check for admin user
-        let userRole = 'employee';
-        let userName = username;
-        
-        // Predefined admin user
-        if (username === 'admin' && password === 'admin123') {
-          userRole = 'admin';
-        } else if (username === 'employee' && password === 'employee123') {
-          userRole = 'employee';
-        } else {
-          // In a demo, allow any username/password with minimum length
-          if (password.length < 6) {
-            setLoading(false);
-            setError('Password must be at least 6 characters');
-            return;
-          }
-        }
-        
-        // Store user info in localStorage or context
-        localStorage.setItem('userToken', 'demo-token');
-        localStorage.setItem('userRole', userRole);
-        localStorage.setItem('userName', userName);
-        
+      if (result.success) {
         // Update authentication state in parent component
         if (setIsAuthenticated) {
           setIsAuthenticated(true);
@@ -61,12 +37,53 @@ const Login = ({ setIsAuthenticated }) => {
         navigate('/dashboard');
         
         console.log('Login successful. Token set in localStorage:', localStorage.getItem('userToken'));
-      }, 1000);
-      
+      } else {
+        setLoading(false);
+        setError(result.message || 'Login failed. Please try again.');
+      }
     } catch (err) {
       setLoading(false);
       setError(err.response?.data?.message || 'Login failed. Please try again.');
     }
+  };
+
+  // Fallback to demo login if API is not available
+  const demoLogin = () => {
+    setError('');
+    setLoading(true);
+    
+    // Check for admin user
+    let userRole = 'employee';
+    let userName = email.split('@')[0] || email;
+    
+    // Predefined admin user
+    if (email === 'admin@example.com' && password === 'admin123') {
+      userRole = 'admin';
+    } else if (email === 'employee@example.com' && password === 'employee123') {
+      userRole = 'employee';
+    } else {
+      // In a demo, allow any username/password with minimum length
+      if (password.length < 6) {
+        setLoading(false);
+        setError('Password must be at least 6 characters');
+        return;
+      }
+    }
+    
+    // Store user info in localStorage or context
+    localStorage.setItem('userToken', 'demo-token');
+    localStorage.setItem('userRole', userRole);
+    localStorage.setItem('userName', userName);
+    
+    // Update authentication state in parent component
+    if (setIsAuthenticated) {
+      setIsAuthenticated(true);
+    }
+    
+    setLoading(false);
+    navigate('/dashboard');
+    
+    console.log('Demo login successful.');
   };
 
   return (
@@ -78,11 +95,11 @@ const Login = ({ setIsAuthenticated }) => {
           <div className="input-group">
             <span className="input-icon"><FiUser /></span>
             <input
-              type="text"
-              name="username"
+              type="email"
+              name="email"
               className="form-control"
-              placeholder="Username"
-              value={username}
+              placeholder="Email Address"
+              value={email}
               onChange={onChange}
               required
             />
@@ -116,6 +133,14 @@ const Login = ({ setIsAuthenticated }) => {
             'Login'
           )}
         </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={demoLogin}
+          disabled={loading}
+        >
+          Use Demo Login
+        </button>
       </form>
       <div className="auth-redirect">
         <p>
@@ -123,8 +148,8 @@ const Login = ({ setIsAuthenticated }) => {
         </p>
         <div className="demo-credentials">
           <p><strong>Demo Credentials:</strong></p>
-          <p>Admin: username=admin, password=admin123</p>
-          <p>Employee: username=employee, password=employee123</p>
+          <p>Admin: email=admin@example.com, password=admin123</p>
+          <p>Employee: email=employee@example.com, password=employee123</p>
         </div>
       </div>
     </div>
